@@ -1,18 +1,17 @@
 #include "kernels.h"
 
 #include "cl/generated_kernels/aplusb.h"
-#include "cl/generated_kernels/mandelbrot.h"
-#include "cl/generated_kernels/sum_01_atomics.h"
-#include "cl/generated_kernels/sum_02_atomics_load_k.h"
-#include "cl/generated_kernels/sum_03_local_memory_atomic_per_workgroup.h"
-#include "cl/generated_kernels/sum_04_local_reduction.h"
+#include "cl/generated_kernels/matrix_01_transpose_naive.h"
+#include "cl/generated_kernels/matrix_02_transpose_coalesced_via_local_memory.h"
+#include "cl/generated_kernels/matrix_03_multiply_naive.h"
+#include "cl/generated_kernels/matrix_04_multiply_via_local_memory.h"
 
 #include "vk/generated_kernels/aplusb_comp.h"
-#include "vk/generated_kernels/mandelbrot_comp.h"
-#include "vk/generated_kernels/sum_01_atomics_comp.h"
-#include "vk/generated_kernels/sum_02_atomics_load_k_comp.h"
-#include "vk/generated_kernels/sum_03_local_memory_atomic_per_workgroup_comp.h"
-#include "vk/generated_kernels/sum_04_local_reduction_comp.h"
+#include "vk/generated_kernels/matrix_01_transpose_naive_comp.h"
+#include "vk/generated_kernels/matrix_02_transpose_coalesced_via_local_memory_comp.h"
+#include "vk/generated_kernels/matrix_03_multiply_naive_comp.h"
+#include "vk/generated_kernels/matrix_04_multiply_via_local_memory_comp.h"
+#include "vk/generated_kernels/matrix_05_multiply_cooperative_matrix_comp.h"
 
 #ifndef CUDA_SUPPORT
 namespace cuda {
@@ -22,39 +21,35 @@ void aplusb(const gpu::WorkSize& workSize,
     // dummy implementation if CUDA_SUPPORT is disabled
     rassert(false, 54623523412413);
 }
-void mandelbrot(const gpu::WorkSize &workSize,
-    const gpu::gpu_mem_32f &results,
-    unsigned int width, unsigned int height,
-    float fromX, float fromY,
-    float sizeX, float sizeY,
-    unsigned int iters, unsigned int isSmoothing)
+void matrix_transpose_naive(const gpu::WorkSize &workSize,
+            const gpu::gpu_mem_32f &matrix, gpu::gpu_mem_32f &transposed_matrix, unsigned int w, unsigned int h)
 {
     // dummy implementation if CUDA_SUPPORT is disabled
     rassert(false, 54623523412413);
 }
-void sum_01_atomics(const gpu::WorkSize& workSize,
-    const gpu::gpu_mem_32u& a, gpu::gpu_mem_32u& sum, unsigned int n)
+void matrix_transpose_coalesced_via_local_memory(const gpu::WorkSize &workSize,
+            const gpu::gpu_mem_32f &matrix, gpu::gpu_mem_32f &transposed_matrix, unsigned int w, unsigned int h)
 {
     // dummy implementation if CUDA_SUPPORT is disabled
     rassert(false, 546237686412414);
 }
-void sum_02_atomics_load_k(const gpu::WorkSize& workSize,
-    const gpu::gpu_mem_32u& a, gpu::gpu_mem_32u& sum, unsigned int n)
+void matrix_multiply_naive(const gpu::WorkSize &workSize,
+            const gpu::gpu_mem_32f &a, const gpu::gpu_mem_32f &b, gpu::gpu_mem_32f &c, unsigned int w, unsigned int h, unsigned int k)
 {
     // dummy implementation if CUDA_SUPPORT is disabled
-    rassert(false, 545764523412414);
+    rassert(false, 546237686412414);
 }
-void sum_03_local_memory_atomic_per_workgroup(const gpu::WorkSize& workSize,
-    const gpu::gpu_mem_32u& a, gpu::gpu_mem_32u& sum, unsigned int n)
+void matrix_multiply_via_local_memory(const gpu::WorkSize &workSize,
+            const gpu::gpu_mem_32f &a, const gpu::gpu_mem_32f &b, gpu::gpu_mem_32f &c, unsigned int w, unsigned int h, unsigned int k)
 {
     // dummy implementation if CUDA_SUPPORT is disabled
-    rassert(false, 7657564523412414);
+    rassert(false, 546237686412414);
 }
-void sum_04_local_reduction(const gpu::WorkSize& workSize,
-    const gpu::gpu_mem_32u& a, gpu::gpu_mem_32u& sum, unsigned int n)
+void matrix_multiply_wmma(const gpu::WorkSize &workSize,
+            const gpu::gpu_mem_32f &a, const gpu::gpu_mem_32f &b, gpu::gpu_mem_32f &c, unsigned int w, unsigned int h, unsigned int k)
 {
     // dummy implementation if CUDA_SUPPORT is disabled
-    rassert(false, 7657564523412414);
+    rassert(false, 546237686412414);
 }
 } // namespace cuda
 #endif
@@ -64,25 +59,23 @@ const ocl::ProgramBinaries& getAplusB()
 {
     return opencl_binaries_aplusb;
 }
-const ocl::ProgramBinaries& getMandelbrot()
+
+const ProgramBinaries& getMatrix01TransposeNaive()
 {
-    return opencl_binaries_mandelbrot;
+    return opencl_binaries_matrix_01_transpose_naive;
 }
-const ProgramBinaries& getSum01Atomics()
+const ProgramBinaries& getMatrix02TransposeCoalescedViaLocalMemory()
 {
-    return opencl_binaries_sum_01_atomics;
+    return opencl_binaries_matrix_02_transpose_coalesced_via_local_memory;
 }
-const ProgramBinaries& getSum02AtomicsLoadK()
+
+const ProgramBinaries& getMatrix03MultiplyNaive()
 {
-    return opencl_binaries_sum_02_atomics_load_k;
+    return opencl_binaries_matrix_03_multiply_naive;
 }
-const ProgramBinaries& getSum03LocalMemoryAtomicPerWorkgroup()
+const ProgramBinaries& getMatrix04MultiplyViaLocalMemory()
 {
-    return opencl_binaries_sum_03_local_memory_atomic_per_workgroup;
-}
-const ProgramBinaries& getSum04LocalReduction()
-{
-    return opencl_binaries_sum_04_local_reduction;
+    return opencl_binaries_matrix_04_multiply_via_local_memory;
 }
 } // namespace ocl
 
@@ -91,24 +84,26 @@ const ProgramBinaries& getAplusB()
 {
     return vulkan_binaries_aplusb_comp;
 }
-const avk2::ProgramBinaries& getMandelbrot()
+
+const ProgramBinaries& getMatrix01TransposeNaive()
 {
-    return vulkan_binaries_mandelbrot_comp;
+    return vulkan_binaries_matrix_01_transpose_naive_comp;
 }
-const ProgramBinaries& getSum01Atomics()
+const ProgramBinaries& getMatrix02TransposeCoalescedViaLocalMemory()
 {
-    return vulkan_binaries_sum_01_atomics_comp;
+    return vulkan_binaries_matrix_02_transpose_coalesced_via_local_memory_comp;
 }
-const ProgramBinaries& getSum02AtomicsLoadK()
+
+const ProgramBinaries& getMatrix03MultiplyNaive()
 {
-    return vulkan_binaries_sum_02_atomics_load_k_comp;
+    return vulkan_binaries_matrix_03_multiply_naive_comp;
 }
-const ProgramBinaries& getSum03LocalMemoryAtomicPerWorkgroup()
+const ProgramBinaries& getMatrix04MultiplyViaLocalMemory()
 {
-    return vulkan_binaries_sum_03_local_memory_atomic_per_workgroup_comp;
+    return vulkan_binaries_matrix_04_multiply_via_local_memory_comp;
 }
-const ProgramBinaries& getSum04LocalReduction()
+const ProgramBinaries& getMatrix05MultiplyCooperativeMatrix()
 {
-    return vulkan_binaries_sum_04_local_reduction_comp;
+    return vulkan_binaries_matrix_05_multiply_cooperative_matrix_comp;
 }
 } // namespace avk2

@@ -23,7 +23,11 @@ namespace avk2 {
 
 		bool										supportsFreeMemoryRequest();
 
-		bool										supportsExtension(const std::string &extension_name);
+		bool										supportsExtension(const std::string &extension_name) const;
+
+                // typles of (MulDataType, SumDataType, M, N, K)
+                std::vector<std::tuple<DataType, DataType, size_t, size_t, size_t>>             supportedCooperativeMatrixSizes() const;
+                bool                                                                            isCooperativeMatrixSizeSupported(DataType mulType, DataType sumType, size_t m, size_t n, size_t k) const;
 
 		std::vector<DataType>						supportedImageDataTypes() const;
 		vk::Format									typeToVkDepthStencilFormat(DataType type) const;

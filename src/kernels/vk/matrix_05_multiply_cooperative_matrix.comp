@@ -1,0 +1,30 @@
+#version 450
+
+#include <libgpu/vulkan/vk/common.vk>
+
+#include "../defines.h"
+
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_subgroup_uniform_control_flow : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+// #extension GL_KHR_cooperative_matrix : require // TODO uncomment me
+// Чтобы это компилировалось вам нужен достаточно свежий GLSL компилятор
+// Например если вы получили ошибку "error: '#extension' : extension not supported: GL_KHR_cooperative_matrix"
+// то вам потребуется его обновить. Для Linux актуальный glslc устанавливается скриптом scripts/linux/install_vulkan_sdk.sh
+// Если потребуется - то явно указать путь к компилятору можно через CMake options: -DGLSLC_BIN=.../glslc.exe
+
+layout (std430, binding = 0) readonly buffer MatrixAIn   { float a[]; }; // rows=h x cols=k
+layout (std430, binding = 1) readonly buffer MatrixBIn   { float b[]; }; // rows=k x cols=w
+layout (std430, binding = 2)          buffer MatrixCOut  { float c[]; }; // rows=h x cols=w
+
+layout (push_constant) uniform PushConstants {
+    uint w;
+    uint h;
+    uint k;
+} params;
+
+layout (local_size_x = VK_SUBGROUP_SIZE) in;
+void main()
+{
+    // TODO 020 Это добровольное задание за супер-пупер-баллы престижа сверх нормы
+}

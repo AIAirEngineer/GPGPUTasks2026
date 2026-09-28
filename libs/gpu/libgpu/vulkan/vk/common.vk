@@ -14,6 +14,8 @@
 #define VK_MAX_COMPUTE_WORK_GROUP_COUNT_Y			16384
 #define VK_MAX_COMPUTE_WORK_GROUP_COUNT_Z			16384
 
+#define VK_SUBGROUP_SIZE                                        32
+
 #ifndef NDEBUG
 	#define DEBUG_PRINTF_EXT_ENABLED		1 // enable in Debug build
 #else

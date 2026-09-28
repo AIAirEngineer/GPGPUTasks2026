@@ -59,11 +59,10 @@ set(LIBRARIES
 # Обратите внимание что это происходит на этапе компиляции, кроме того эта команда делает так чтобы файл src/kernels/vk/aplusb.h был перечислен среди HEADERS для компиляции при вызове add_executable
 set(OPENCL_SOURCES
         src/kernels/cl/aplusb.cl
-        src/kernels/cl/mandelbrot.cl
-        src/kernels/cl/sum_01_atomics.cl
-        src/kernels/cl/sum_02_atomics_load_k.cl
-        src/kernels/cl/sum_03_local_memory_atomic_per_workgroup.cl
-        src/kernels/cl/sum_04_local_reduction.cl)
+        src/kernels/cl/matrix_01_transpose_naive.cl
+        src/kernels/cl/matrix_02_transpose_coalesced_via_local_memory.cl
+        src/kernels/cl/matrix_03_multiply_naive.cl
+        src/kernels/cl/matrix_04_multiply_via_local_memory.cl)
 
 set(OPENCL_INCLUDES src/kernels/defines.h src/kernels/cl/helpers/rassert.cl)
 set(OPENCL_DEFINES)
@@ -80,11 +79,11 @@ endforeach()
 # Обратите внимание что это происходит на этапе компиляции, кроме того эта команда делает так чтобы файл src/kernels/vk/aplusb_comp.h был перечислен среди HEADERS для компиляции при вызове add_executable
 set(VULKAN_SOURCES
         src/kernels/vk/aplusb.comp
-        src/kernels/vk/mandelbrot.comp
-        src/kernels/vk/sum_01_atomics.comp
-        src/kernels/vk/sum_02_atomics_load_k.comp
-        src/kernels/vk/sum_03_local_memory_atomic_per_workgroup.comp
-        src/kernels/vk/sum_04_local_reduction.comp)
+        src/kernels/vk/matrix_01_transpose_naive.comp
+        src/kernels/vk/matrix_02_transpose_coalesced_via_local_memory.comp
+        src/kernels/vk/matrix_03_multiply_naive.comp
+        src/kernels/vk/matrix_04_multiply_via_local_memory.comp
+        src/kernels/vk/matrix_05_multiply_cooperative_matrix.comp)
 
 set(VULKAN_DEFINES)
 foreach(VK_FILE IN LISTS VULKAN_SOURCES)
@@ -98,13 +97,14 @@ if (GPU_CUDA_SUPPORT)
     # Компиляция CUDA происходит NVCC компилятором, все файлы с расширением .cu компилируются два раза:
     # 1) один раз обычным компилятором - для HOST-side кода, компилируются только те функции которые не помечены специально что они для видеокарты (или помечены что они и для видеокарты и для HOST-side кода)
     # 2) второй раз специальным CUDA-компилятором NVCC - для DEVICE-side кода, например функции помеченные специальным модификатором __global__ (кернелы) или __device__ (функции которые можно вызвать на видеокарте, т.е. из кернелов)
+    # Вероятно вам стоит выставить в CMake options: -DCMAKE_CUDA_ARCHITECTURES=75 -DCMAKE_CUDA_FLAGS=-lineinfo (первое - чтобы включить поддержку WMMA, второе - чтобы compute-sanitizer и профилировщик знали номера строк кернела)
     set(CUDA_SOURCES
             src/kernels/cu/aplusb.cu
-            src/kernels/cu/mandelbrot.cu
-            src/kernels/cu/sum_01_atomics.cu
-            src/kernels/cu/sum_02_atomics_load_k.cu
-            src/kernels/cu/sum_03_local_memory_atomic_per_workgroup.cu
-            src/kernels/cu/sum_04_local_reduction.cu)
+            src/kernels/cu/matrix_01_transpose_naive.cu
+            src/kernels/cu/matrix_02_transpose_coalesced_via_local_memory.cu
+            src/kernels/cu/matrix_03_multiply_naive.cu
+            src/kernels/cu/matrix_04_multiply_via_local_memory.cu
+            src/kernels/cu/matrix_05_multiply_wmma.cu)
 
     add_definitions(-DCUDA_SUPPORT)
     add_library(${PROJECT_NAME}_core STATIC ${SOURCES} ${CUDA_SOURCES} ${HEADERS})
@@ -115,16 +115,16 @@ else ()
     target_link_libraries(${PROJECT_NAME}_core ${LIBRARIES})
 endif ()
 
-add_executable(main_aplusb     src/main_aplusb.cpp)
-add_executable(main_mandelbrot src/main_mandelbrot.cpp)
-add_executable(main_sum        src/main_sum.cpp)
+add_executable(main_aplusb           src/main_aplusb.cpp)
+add_executable(main_matrix_transpose src/main_01_matrix_transpose.cpp)
+add_executable(main_matrix_multiply  src/main_02_matrix_multiply.cpp)
 
-target_link_libraries(main_aplusb     ${PROJECT_NAME}_core)
-target_link_libraries(main_mandelbrot ${PROJECT_NAME}_core)
-target_link_libraries(main_sum        ${PROJECT_NAME}_core)
+target_link_libraries(main_aplusb           ${PROJECT_NAME}_core)
+target_link_libraries(main_matrix_transpose ${PROJECT_NAME}_core)
+target_link_libraries(main_matrix_multiply  ${PROJECT_NAME}_core)
 
 if (GPU_CUDA_SUPPORT)
-    target_include_directories(main_aplusb     PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
-    target_include_directories(main_mandelbrot PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
-    target_include_directories(main_sum        PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+    target_include_directories(main_aplusb           PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+    target_include_directories(main_matrix_transpose PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+    target_include_directories(main_matrix_multiply  PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 endif ()

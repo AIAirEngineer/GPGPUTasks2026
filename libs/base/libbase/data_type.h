@@ -10,6 +10,7 @@ enum DataType {
 	DataType16u,
 	DataType32i,
 	DataType32u,
+        DataType16f,
 	DataType32f,
 	DataType64i,
 	DataType64u,
@@ -24,6 +25,7 @@ inline std::string typeName(DataType type) {
 	if (type == DataType16u)        return "16u";
 	if (type == DataType32i)        return "32i";
 	if (type == DataType32u)        return "32u";
+	if (type == DataType16f)        return "16f";
 	if (type == DataType32f)        return "32f";
 	if (type == DataType64i)        return "64i";
 	if (type == DataType64u)        return "64u";
@@ -38,7 +40,7 @@ inline void throwUnsupportedDataType(DataType data_type) {
 inline size_t dataSize(DataType type) {
 	rassert(type != DataTypeUndefined, 334721746);
 	if (type == DataType8i  || type == DataType8u)                          return 1;
-	if (type == DataType16i || type == DataType16u)                         return 2;
+	if (type == DataType16i || type == DataType16u || type == DataType16f)  return 2;
 	if (type == DataType32i || type == DataType32u || type == DataType32f)  return 4;
 	if (type == DataType64i || type == DataType64u || type == DataType64f)  return 8;
 	throwUnsupportedDataType(type);
