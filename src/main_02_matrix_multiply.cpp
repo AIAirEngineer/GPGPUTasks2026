@@ -133,6 +133,7 @@ void run(int argc, char** argv)
                 // _______________________________OpenCL_____________________________________________
                 if (context.type() == gpu::Context::TypeOpenCL) {
                     if (algorithm == "01 naive") {
+                        // TODO обязательно замените размер рабочей группы 1x1 на больший
                         ocl_matrix03MultiplyNaive.exec(gpu::WorkSize(1, 1, w, h), matrix_a_gpu, matrix_b_gpu, matrix_c_gpu, w, h, k);
                     } else if (algorithm == "02 using local memory") {
                         ocl_matrix04MultiplyViaLocalMemory.exec(gpu::WorkSize(1, 1, w, h), matrix_a_gpu, matrix_b_gpu, matrix_c_gpu, w, h, k);
@@ -142,6 +143,7 @@ void run(int argc, char** argv)
                     // _______________________________CUDA___________________________________________
                 } else if (context.type() == gpu::Context::TypeCUDA) {
                     if (algorithm == "01 naive") {
+                        // TODO обязательно замените размер рабочей группы 1x1 на больший
                         cuda::matrix_multiply_naive(gpu::WorkSize(1, 1, w, h), matrix_a_gpu, matrix_b_gpu, matrix_c_gpu, w, h, k);
                     } else if (algorithm == "02 using local memory") {
                         cuda::matrix_multiply_via_local_memory(gpu::WorkSize(1, 1, w, h), matrix_a_gpu, matrix_b_gpu, matrix_c_gpu, w, h, k);
@@ -158,6 +160,7 @@ void run(int argc, char** argv)
                         unsigned int k;
                     } params = {w, h, k};
                     if (algorithm == "01 naive") {
+                        // TODO обязательно замените размер рабочей группы 1x1 на больший
 //                        vk_matrix03MultiplyNaive.exec(params, gpu::WorkSize(1, 1, w, h), matrix_a_gpu, matrix_b_gpu, matrix_c_gpu);
                     } else if (algorithm == "02 using local memory") {
 //                        vk_matrix04MultiplyViaLocalMemory.exec(params, gpu::WorkSize(1, 1, w, h), matrix_a_gpu, matrix_b_gpu, matrix_c_gpu);
