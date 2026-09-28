@@ -8,6 +8,7 @@
 #include "../defines.h"
 
 // Include WMMA header with nvcuda::wmma namespace
+// Если строка "using namespace nvcuda;" не компилируется, добавьте в CMake options: -DCMAKE_CUDA_ARCHITECTURES=75 -DCMAKE_CUDA_FLAGS=-lineinfo
 #include <mma.h>
 using namespace nvcuda;
 
