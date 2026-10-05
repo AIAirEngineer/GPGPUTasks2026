@@ -16,8 +16,9 @@ install_prefix=/usr/local
 sudo apt update
 sudo apt install -yq libgraphicsmagick++1-dev # we need Magick++.h so that CImg.h can load jpg files
 sudo apt install -yq build-essential pkg-config libx11-dev libxrandr-dev # to fix #include <X11/extensions/Xrandr.h> when compiling Vulkan-Loader
-sudo apt install -yq libx11-xcb-dev libxkbcommon-dev libxrandr-dev libegl1-mesa-dev # to fix "The following required packages were not found: - wayland-client" when compiling Validation-Layers - see https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-ValidationLayers/%2B/refs/tags/v1.1.107/BUILD.md#linux-build-requirements
-sudo apt install -yq glslc libspirv-reflect-dev spirv-headers
+sudo apt install -yq libx11-xcb-dev libxkbcommon-dev libxrandr-dev libegl1-mesa-dev libwayland-dev # to fix "The following required packages were not found: - wayland-client" when compiling Validation-Layers - see https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-ValidationLayers/%2B/refs/tags/v1.1.107/BUILD.md#linux-build-requirements
+# sudo apt install -yq glslc libspirv-reflect-dev spirv-headers
+sudo apt install -yq glslc spirv-headers
 
 googletest_version=1.12.1
 vulkan_sdk_version=1.3.283
@@ -65,12 +66,14 @@ make -j$njobs install
 cd ../..
 rm -rf Vulkan-Loader-${vulkan_loader_version}
 
-mkdir ${install_prefix}/include/vma
+# mkdir ${install_prefix}/include/vma
+mkdir -p ${install_prefix}/include/vma
 mv vk_mem_alloc.h ${install_prefix}/include/vma/vk_mem_alloc.h
 
 if [ "$SKIP_VALIDATION_LAYERS" -eq 0 ]; then
   echo "Installing Vulkan Validation Layers"
-  unzip Vulkan-ValidationLayers-${vulkan_validation_layers_version}.zip
+  # unzip Vulkan-ValidationLayers-${vulkan_validation_layers_version}.zip
+  unzip -o Vulkan-ValidationLayers-${vulkan_validation_layers_version}.zip
   cd Vulkan-ValidationLayers-${vulkan_validation_layers_version}
   mkdir releasebuild -p
   cd releasebuild
