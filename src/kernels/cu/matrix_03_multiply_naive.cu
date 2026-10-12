@@ -10,12 +10,29 @@
 __global__ void matrix_multiply_naive(
                        const float* a, // rows=h x cols=k
                        const float* b, // rows=k x cols=w
-                             float* c, // rows=h x cols=w
+                             float* c, // rows=k x cols=w
                        unsigned int w,
                        unsigned int h,
                        unsigned int k)
 {
     // TODO
+    // Координаты элемента результирующей матрицы C.
+    const unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= w || y >= h) {
+        return;
+    }
+
+    float sum = 0.0f;
+
+    // Строка y матрицы A умножается на столбец x матрицы B.
+    for (unsigned int i = 0; i < k; ++i) {
+        sum += a[static_cast<size_t>(y) * k + i]
+            * b[static_cast<size_t>(i) * w + x];
+    }
+
+    c[static_cast<size_t>(y) * w + x] = sum;
 }
 
 namespace cuda {

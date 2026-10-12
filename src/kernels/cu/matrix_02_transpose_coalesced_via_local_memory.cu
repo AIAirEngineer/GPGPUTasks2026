@@ -14,6 +14,32 @@ __global__ void matrix_transpose_coalesced_via_local_memory(
                              unsigned int h)
 {
     // TODO
+    static_assert(GROUP_SIZE_X == GROUP_SIZE_Y);
+
+    // memory of block
+    __shared__ float tile[GROUP_SIZE_Y][GROUP_SIZE_X];
+
+    const unsigned int tx = threadIdx.x;
+    const unsigned int ty = threadIdx.y;
+
+    // coordinates in base matrix
+    const unsigned int x = blockIdx.x * GROUP_SIZE_X + tx;
+    const unsigned int y = blockIdx.y * GROUP_SIZE_Y + ty;
+
+    if (x < w && y < h) {
+        tile[ty][tx] = matrix[static_cast<size_t>(y) * w + x];
+    }
+
+    // wait for final load
+    __syncthreads();
+
+    // coordinates in result matrix
+    const unsigned int out_x = blockIdx.y * GROUP_SIZE_Y + tx;
+    const unsigned int out_y = blockIdx.x * GROUP_SIZE_X + ty;
+
+    if (out_x < h && out_y < w) {
+        transposed_matrix[static_cast<size_t>(out_y) * h + out_x] = tile[tx][ty];
+    }
 }
 
 namespace cuda {
