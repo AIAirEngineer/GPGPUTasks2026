@@ -2,11 +2,14 @@
 #include <libutils/misc.h>
 
 #include <libbase/timer.h>
+#include <libbase/fast_random.h>
 #include <libgpu/vulkan/engine.h>
 #include <libgpu/vulkan/tests/test_utils.h>
 
 #include "kernels/defines.h"
 #include "kernels/kernels.h"
+
+#include "debug.h" // TODO очень советую использовать debug::prettyBits(...) для отладки
 
 #include <fstream>
 
@@ -33,49 +36,75 @@ void run(int argc, char** argv)
     //          кроме того есть debugPrintfEXT(...) для вывода в консоль с видеокарты
     //          кроме того используемая библиотека поддерживает rassert-проверки (своеобразные инварианты с уникальным числом) на видеокарте для Vulkan
 
-    ocl::KernelSource ocl_fill_with_zeros(ocl::getFillBufferWithZeros());
-    ocl::KernelSource ocl_sum_reduction(ocl::getPrefixSum01Reduction());
-    ocl::KernelSource ocl_prefix_accumulation(ocl::getPrefixSum02PrefixAccumulation());
+    ocl::KernelSource ocl_fillBufferWithZeros(ocl::getFillBufferWithZeros());
+    ocl::KernelSource ocl_radixSort01LocalCounting(ocl::getRadixSort01LocalCounting());
+    ocl::KernelSource ocl_radixSort02GlobalPrefixesScanSumReduction(ocl::getRadixSort02GlobalPrefixesScanSumReduction());
+    ocl::KernelSource ocl_radixSort03GlobalPrefixesScanAccumulation(ocl::getRadixSort03GlobalPrefixesScanAccumulation());
+    ocl::KernelSource ocl_radixSort04Scatter(ocl::getRadixSort04Scatter());
 
-    avk2::KernelSource vk_fill_with_zeros(avk2::getFillBufferWithZeros());
-    avk2::KernelSource vk_sum_reduction(avk2::getPrefixSum01Reduction());
-    avk2::KernelSource vk_prefix_accumulation(avk2::getPrefixSum02PrefixAccumulation());
+    avk2::KernelSource vk_fillBufferWithZeros(avk2::getFillBufferWithZeros());
+    avk2::KernelSource vk_radixSort01LocalCounting(avk2::getRadixSort01LocalCounting());
+    avk2::KernelSource vk_radixSort02GlobalPrefixesScanSumReduction(avk2::getRadixSort02GlobalPrefixesScanSumReduction());
+    avk2::KernelSource vk_radixSort03GlobalPrefixesScanAccumulation(avk2::getRadixSort03GlobalPrefixesScanAccumulation());
+    avk2::KernelSource vk_radixSort04Scatter(avk2::getRadixSort04Scatter());
 
-    unsigned int n = 100*1000*1000;
+    FastRandom r;
+
+    int n = 100*1000*1000; // TODO при отладке используйте минимальное n (например n=5 или n=10) при котором воспроизводится бага
+    int max_value = std::numeric_limits<int>::max(); // TODO при отладке используйте минимальное max_value (например max_value=8) при котором воспроизводится бага
     std::vector<unsigned int> as(n, 0);
-    size_t total_sum = 0;
+    std::vector<unsigned int> sorted(n, 0);
     for (size_t i = 0; i < n; ++i) {
-        as[i] = (3 * (i + 5) + 7) % 17;
-        total_sum += as[i];
-        rassert(total_sum < std::numeric_limits<unsigned int>::max(), 5462345234231, total_sum, as[i], i); // ensure no overflow
+        as[i] = r.next(0, max_value);
+    }
+    std::cout << "n=" << n << " max_value=" << max_value << std::endl;
+
+    {
+        // убедимся что в массиве есть хотя бы несколько повторяющихся значений
+        size_t force_duplicates_attempts = 3;
+        bool all_attempts_missed = true;
+        for (size_t k = 0; k < force_duplicates_attempts; ++k) {
+            size_t i = r.next(0, n - 1);
+            size_t j = r.next(0, n - 1);
+            if (i != j) {
+                as[j] = as[i];
+                all_attempts_missed = false;
+            }
+        }
+        rassert(!all_attempts_missed, 4353245123412);
     }
 
-    std::vector<unsigned int> cpu_prefix_sum(n);
     {
-        std::cout << "prefix sum on CPU..." << std::endl;
+        sorted = as;
+        std::cout << "sorting on CPU..." << std::endl;
         timer t;
-        unsigned int sum = 0;
-        for (size_t i = 0; i < n; ++i) {
-            sum += as[i];
-            cpu_prefix_sum[i] = sum;
-        }
+        std::sort(sorted.begin(), sorted.end());
         double elapsed = t.elapsed();
-        double memory_size_gb = sizeof(unsigned int) * 2.0 * n / 1024.0 / 1024.0 / 1024.0;
-        std::cout << "CPU prefix sum finished in " << elapsed << " sec" << std::endl;
-        std::cout << "CPU prefix sum effective RAM bandwidth: "
-                  << memory_size_gb / elapsed << " GB/s ("
-                  << n / 1e6 / elapsed << " uint millions/s)" << std::endl;
+        // Вычисляем достигнутую эффективную пропускную способность видеопамяти (из соображений что мы отработали в один проход - считали массив и сохранили его переупорядоченным)
+        double memory_size_gb = sizeof(unsigned int) * 2 * n / 1024.0 / 1024.0 / 1024.0;
+        std::cout << "CPU std::sort finished in " << elapsed << " sec" << std::endl;
+        std::cout << "CPU std::sort effective RAM bandwidth: " << memory_size_gb / elapsed << " GB/s (" << n / 1e6 / elapsed << " uint millions/s)" << std::endl;
     }
 
     // Аллоцируем буферы в VRAM
-    gpu::gpu_mem_32u input_gpu(n), buffer1_pow2_sum_gpu(n), buffer2_pow2_sum_gpu(n), prefix_sum_accum_gpu(n);
+    gpu::gpu_mem_32u input_gpu(n);
+    gpu::gpu_mem_32u buffer1_gpu(n), buffer2_gpu(n), buffer3_gpu(n), buffer4_gpu(n); // TODO это просто шаблонка, можете переименовать эти буферы, сделать другого размера/типа, удалить часть, добавить новые
+    gpu::gpu_mem_32u buffer_output_gpu(n);
 
     // Прогружаем входные данные по PCI-E шине: CPU RAM -> GPU VRAM
     input_gpu.writeN(as.data(), n);
+    // Советую занулить (или еще лучше - заполнить какой-то уникальной константой, например 255) все буферы
+    // В некоторых случаях это ускоряет отладку, но обратите внимание, что fill реализован через копию множества нулей по PCI-E, то есть он очень медленный
+    // Если вам нужно занулять буферы в процессе вычислений - используйте кернел который это сделает (см. кернел fill_buffer_with_zeros)
+    buffer1_gpu.fill(255);
+    buffer2_gpu.fill(255);
+    buffer3_gpu.fill(255);
+    buffer4_gpu.fill(255);
+    buffer_output_gpu.fill(255);
 
     // Запускаем кернел (несколько раз и с замером времени выполнения)
     std::vector<double> times;
-    for (int iter = 0; iter < 10; ++iter) {
+    for (int iter = 0; iter < 10; ++iter) { // TODO при отладке запускайте одну итерацию
         timer t;
 
         // Запускаем кернел, с указанием размера рабочего пространства и передачей всех аргументов
@@ -83,41 +112,45 @@ void run(int argc, char** argv)
         if (context.type() == gpu::Context::TypeOpenCL) {
             // TODO
             throw std::runtime_error(CODE_IS_NOT_IMPLEMENTED);
-            // ocl_fill_with_zeros.exec();
-            // ocl_sum_reduction.exec();
-            // ocl_prefix_accumulation.exec();
+            // ocl_fillBufferWithZeros.exec();
+            // ocl_radixSort01LocalCounting.exec();
+            // ocl_radixSort02GlobalPrefixesScanSumReduction.exec();
+            // ocl_radixSort03GlobalPrefixesScanAccumulation.exec();
+            // ocl_radixSort04Scatter.exec();
         } else if (context.type() == gpu::Context::TypeCUDA) {
             // TODO
             throw std::runtime_error(CODE_IS_NOT_IMPLEMENTED);
             // cuda::fill_buffer_with_zeros();
-            // cuda::prefix_sum_01_reduction();
-            // cuda::prefix_sum_02_prefix_accumulation();
+            // cuda::radix_sort_01_local_counting();
+            // cuda::radix_sort_02_global_prefixes_scan_sum_reduction();
+            // cuda::radix_sort_03_global_prefixes_scan_accumulation();
+            // cuda::radix_sort_04_scatter();
         } else if (context.type() == gpu::Context::TypeVulkan) {
             // TODO
             throw std::runtime_error(CODE_IS_NOT_IMPLEMENTED);
-            // vk_fill_with_zeros.exec();
-            // vk_sum_reduction.exec();
-            // vk_prefix_accumulation.exec();
+            // vk_fillBufferWithZeros.exec();
+            // vk_radixSort01LocalCounting.exec();
+            // vk_radixSort02GlobalPrefixesScanSumReduction.exec();
+            // vk_radixSort03GlobalPrefixesScanAccumulation.exec();
+            // vk_radixSort04Scatter.exec();
         } else {
             rassert(false, 4531412341, context.type());
         }
 
         times.push_back(t.elapsed());
     }
-    std::cout << "prefix sum times (in seconds) - " << stats::valuesStatsLine(times) << std::endl;
+    std::cout << "GPU radix-sort times (in seconds) - " << stats::valuesStatsLine(times) << std::endl;
 
-    // Вычисляем достигнутую эффективную пропускную способность видеопамяти (из соображений что мы отработали в один проход - считали массив и сохранили префиксные суммы)
+    // Вычисляем достигнутую эффективную пропускную способность видеопамяти (из соображений что мы отработали в один проход - считали массив и сохранили его переупорядоченным)
     double memory_size_gb = sizeof(unsigned int) * 2 * n / 1024.0 / 1024.0 / 1024.0;
-    std::cout << "GPU prefix sum median effective VRAM bandwidth: "
-              << memory_size_gb / stats::median(times) << " GB/s ("
-              << n / 1e6 / stats::median(times) << " uint millions/s)" << std::endl;
+    std::cout << "GPU radix-sort median effective VRAM bandwidth: " << memory_size_gb / stats::median(times) << " GB/s (" << n / 1e6 / stats::median(times) << " uint millions/s)" << std::endl;
 
     // Считываем результат по PCI-E шине: GPU VRAM -> CPU RAM
-    std::vector<unsigned int> gpu_prefix_sum = prefix_sum_accum_gpu.readVector();
+    std::vector<unsigned int> gpu_sorted = buffer_output_gpu.readVector();
 
     // Сверяем результат
     for (size_t i = 0; i < n; ++i) {
-        rassert(cpu_prefix_sum[i] == gpu_prefix_sum[i], 566324523452323, cpu_prefix_sum[i], gpu_prefix_sum[i], i);
+        rassert(sorted[i] == gpu_sorted[i], 566324523452323, sorted[i], gpu_sorted[i], i);
     }
 
     // Проверяем что входные данные остались нетронуты (ведь мы их переиспользуем от итерации к итерации)

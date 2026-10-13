@@ -60,8 +60,10 @@ set(LIBRARIES
 set(OPENCL_SOURCES
         src/kernels/cl/aplusb.cl
         src/kernels/cl/fill_buffer_with_zeros.cl
-        src/kernels/cl/prefix_sum_01_reduction.cl
-        src/kernels/cl/prefix_sum_02_prefix_accumulation.cl)
+        src/kernels/cl/radix_sort_01_local_counting.cl
+        src/kernels/cl/radix_sort_02_global_prefixes_scan_sum_reduction.cl
+        src/kernels/cl/radix_sort_03_global_prefixes_scan_accumulation.cl
+        src/kernels/cl/radix_sort_04_scatter.cl)
 
 set(OPENCL_INCLUDES src/kernels/defines.h src/kernels/cl/helpers/rassert.cl)
 set(OPENCL_DEFINES)
@@ -79,8 +81,10 @@ endforeach()
 set(VULKAN_SOURCES
         src/kernels/vk/aplusb.comp
         src/kernels/vk/fill_buffer_with_zeros.comp
-        src/kernels/vk/prefix_sum_01_reduction.comp
-        src/kernels/vk/prefix_sum_02_prefix_accumulation.comp)
+        src/kernels/vk/radix_sort_01_local_counting.comp
+        src/kernels/vk/radix_sort_02_global_prefixes_scan_sum_reduction.comp
+        src/kernels/vk/radix_sort_03_global_prefixes_scan_accumulation.comp
+        src/kernels/vk/radix_sort_04_scatter.comp)
 
 set(VULKAN_DEFINES)
 foreach(VK_FILE IN LISTS VULKAN_SOURCES)
@@ -98,8 +102,10 @@ if (GPU_CUDA_SUPPORT)
     set(CUDA_SOURCES
             src/kernels/cu/aplusb.cu
             src/kernels/cu/fill_buffer_with_zeros.cu
-            src/kernels/cu/prefix_sum_01_reduction.cu
-            src/kernels/cu/prefix_sum_02_prefix_accumulation.cu)
+            src/kernels/cu/radix_sort_01_local_counting.cu
+            src/kernels/cu/radix_sort_02_global_prefixes_scan_sum_reduction.cu
+            src/kernels/cu/radix_sort_03_global_prefixes_scan_accumulation.cu
+            src/kernels/cu/radix_sort_04_scatter.cu)
 
     add_definitions(-DCUDA_SUPPORT)
     add_library(${PROJECT_NAME}_core STATIC ${SOURCES} ${CUDA_SOURCES} ${HEADERS})
@@ -111,12 +117,12 @@ else ()
 endif ()
 
 add_executable(main_aplusb     src/main_aplusb.cpp)
-add_executable(main_prefix_sum src/main_prefix_sum.cpp)
+add_executable(main_radix_sort src/main_radix_sort.cpp)
 
 target_link_libraries(main_aplusb     ${PROJECT_NAME}_core)
-target_link_libraries(main_prefix_sum ${PROJECT_NAME}_core)
+target_link_libraries(main_radix_sort ${PROJECT_NAME}_core)
 
 if (GPU_CUDA_SUPPORT)
     target_include_directories(main_aplusb     PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
-    target_include_directories(main_prefix_sum PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+    target_include_directories(main_radix_sort PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
 endif ()
