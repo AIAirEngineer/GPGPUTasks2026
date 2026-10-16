@@ -88,10 +88,54 @@ void run(int argc, char** argv)
             // ocl_prefix_accumulation.exec();
         } else if (context.type() == gpu::Context::TypeCUDA) {
             // TODO
-            throw std::runtime_error(CODE_IS_NOT_IMPLEMENTED);
+            //throw std::runtime_error(CODE_IS_NOT_IMPLEMENTED);
             // cuda::fill_buffer_with_zeros();
             // cuda::prefix_sum_01_reduction();
             // cuda::prefix_sum_02_prefix_accumulation();
+            if (n > 0) {
+                const unsigned int block_size = 256;
+                const gpu::WorkSize full_work_size(block_size, n);
+
+                // every repeat start with empty storage
+                cuda::fill_buffer_with_zeros(full_work_size, prefix_sum_accum_gpu, n);
+
+                // on zero level read initial massive
+                const gpu::gpu_mem_32u* current = &input_gpu;
+                gpu::gpu_mem_32u* next = &buffer1_pow2_sum_gpu;
+                unsigned int current_n = n;
+                unsigned int pow2 = 0;
+
+                while (true) {
+                    // add this level result
+                    cuda::prefix_sum_02_prefix_accumulation(full_work_size, *current, prefix_sum_accum_gpu, n, pow2);
+
+                    if ((n >> pow2) == 1) {
+                        break;
+                    }
+
+                    const unsigned int next_n = current_n / 2 + current_n % 2;
+                    const gpu::WorkSize reduction_work_size(block_size, next_n);
+
+                    // new result are enter of next level
+                    cuda::prefix_sum_01_reduction(reduction_work_size, *current, *next, current_n);
+
+                    // new result will enter for next level
+                    current = next;
+                    current_n = next_n;
+                    ++pow2;
+
+                    // alternate only work buffers, input gpu won't rewrite
+                    if (next == &buffer1_pow2_sum_gpu) {
+                        next = &buffer2_pow2_sum_gpu;
+                    }
+                    else {
+                        next = &buffer1_pow2_sum_gpu;
+                    }
+                }
+            }
+
+
+
         } else if (context.type() == gpu::Context::TypeVulkan) {
             // TODO
             throw std::runtime_error(CODE_IS_NOT_IMPLEMENTED);
