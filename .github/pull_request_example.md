@@ -7,10 +7,7 @@
 <details><summary>Локальный вывод</summary><p>
 
 <pre>
-$ ./main_<executable_name_1>
-...
-
-$ ./main_<executable_name_2>
+$ ./main_merge_sort
 ...
 </pre>
 
