@@ -17,6 +17,20 @@ __global__ void radix_sort_03_global_prefixes_scan_accumulation(
     unsigned int a2)
 {
     // TODO
+
+    const unsigned int n = a1;
+    const unsigned int group_size = a2;
+
+
+    const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) {return;}
+    
+    // buffer1 содержит уже глобальные префиксы итогов групп
+    // buffer2 содержит локальные префиксы нижнего уровня
+    // Условие: group_size >= 2; буферы не перекрываю
+    const unsigned int group = i / group_size;
+    // Перед первой группой элементов нет, поэтому к ней ничего не добавляется
+    if (group > 0) {buffer2[i] += buffer1[group - 1]};
 }
 
 namespace cuda {

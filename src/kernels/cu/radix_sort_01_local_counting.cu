@@ -16,6 +16,39 @@ __global__ void radix_sort_01_local_counting(
     unsigned int a2)
 {
     // TODO
+    const unsigned int n = a1;
+    const unsigned int bit = a2;
+
+    const unsigned int tid = threadIdx.x;
+    const unsigned int i = blockIdx.x * blockDim.x + tid;
+
+    // одномерный запуск не более 1024 потока в блоке
+    __shared__ unsigned int local_prefix[1024];
+
+    // За пределами входного массива вклад в сумму равен нулю
+    unsigned int is_zero = 0;
+    if (i < n) {
+        const unsigned int current_bit = (buffer[i] >> bit) & 1u;
+        is_zero = 1u - current_bit;
+    }
+
+    local_prefix[tid] = is_zero;
+    __syncthreads();
+
+    // scan флаго is_zero внутри каждого блока
+    for (unsigned int offset = 1; offset < blockDim.x; offset *= 2) {
+        unsigned int add = 0;
+        if (tid >= offset) {
+            add = local_prefix[tid - offset];
+        }
+
+        // Все должны закончить запись новаога состояния
+        __syncthreads();
+    }
+    if (i < n) {
+        buffer2[i] = local_prefix[tid];
+    }
+
 }
 
 namespace cuda {
