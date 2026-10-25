@@ -17,6 +17,31 @@ __global__ void radix_sort_04_scatter(
     unsigned int a2)
 {
     // TODO
+    const unsigned int n = a1;
+    const unsigned int bit = a2;
+
+    const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) {return;}
+
+    // buffer1 — числа текущего прохода
+    // buffer2 — глобальный inclusive scan флагов is_zero для этих чисел
+    // buffer3 — отдельный выходной массив; не перекрывается с входами
+    const unsigned int value = buffer1[i];
+    const unsigned int current_bit = (value >> bit) & 1u;
+
+    const unsigned int zeros_prefix = buffer2[i];
+    const unsigned int total_zeros = buffer2[n - 1u];
+
+    unsigned int dst;
+    if (current_bit == 0u) {
+        // Номер среди элементов с нулевым битом, начиная с нуля
+        dst = zeros_prefix - 1u;
+    } else {
+        // Пропускаем элементы с нулевым битом и предыдущие с единичным
+        dst = total_zeros + (i - zeros_prefix);
+    }
+
+    buffer3[dst] = value;
 }
 
 namespace cuda {

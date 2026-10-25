@@ -30,7 +30,9 @@ __global__ void radix_sort_03_global_prefixes_scan_accumulation(
     // Условие: group_size >= 2; буферы не перекрываю
     const unsigned int group = i / group_size;
     // Перед первой группой элементов нет, поэтому к ней ничего не добавляется
-    if (group > 0) {buffer2[i] += buffer1[group - 1]};
+    if (group > 0) {
+        buffer2[i] += buffer1[group - 1];
+    }
 }
 
 namespace cuda {
